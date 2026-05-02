@@ -1,0 +1,12 @@
+{
+  "B4HiKJixYmXhcRP8jih4vTq9pU63": [
+    {
+      "type": "deposit",
+      "address": "2GpGxJ7VVLYZubsTYgQtuuaS7hpR8TB4NptzUvLPrqK9",
+      "amount": 0.001892997,
+      "asset": "SOL",
+      "txId": "manual-trigger-sol-1",
+      "timestamp": "2026-05-02T21:44:00.000Z"
+    }
+  ]
+}

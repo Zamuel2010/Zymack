@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  @apply bg-[#f8f9fc] text-[#050505];
+}
+html.dark body {
+  @apply bg-[#050505] text-white;
+}
