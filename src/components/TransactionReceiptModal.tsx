@@ -37,8 +37,9 @@ export default function TransactionReceiptModal({ tx, onBack }: TransactionRecei
         <div className="w-full max-w-[360px] bg-white dark:bg-[#111111] rounded-[24px] shadow-sm border border-black/5 dark:border-white/5 overflow-hidden relative">
            
            {/* Top pattern/branding */}
-           <div className="h-20 bg-gradient-to-r from-black to-gray-800 dark:from-white dark:to-gray-200 relative flex items-center justify-center">
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] dark:bg-[radial-gradient(circle_at_center,_black_1px,_transparent_1px)] bg-[size:10px_10px]" />
+           <div className="h-24 bg-gradient-to-r from-black/5 to-black/10 dark:from-white/5 dark:to-white/10 relative flex flex-col items-center justify-center">
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_black_1px,_transparent_1px)] dark:bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[size:10px_10px]" />
+              <img src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" alt="Zymack Logo" className="h-8 object-contain z-10 drop-shadow-sm mb-2" referrerPolicy="no-referrer" />
               <div className="absolute -bottom-6 w-12 h-12 rounded-full bg-white dark:bg-[#111111] flex items-center justify-center border-4 border-white dark:border-[#111111] z-10 shadow-sm">
                  {isDeposit ? 
                     <ArrowDownLeft size={20} className="text-emerald-500" /> : 

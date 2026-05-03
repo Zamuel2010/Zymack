@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ZYMACK | Seamless & Fast Transaction
 
-# Run and deploy your AI Studio app
+![Zymack Banner](https://images.unsplash.com/photo-1639322537231-2f099aa123b3?q=80&w=1200&h=400&auto=format&fit=crop)
 
-This contains everything you need to run your app locally.
+Welcome to **Zymack**! We are building the future of personal banking, premium digital payments, and cryptocurrency management. Zymack offers a seamless, secure, and fast financial transaction experience wrapped in a gorgeous dark-mode optimized glassmorphism interface. 
 
-View your app in AI Studio: https://ai.studio/apps/34162b07-8cae-4afb-85af-96a73210f1fa
+## 🚀 Key Features
 
-## Run Locally
+- **Blazing Fast Transactions**: Send and receive funds instantly with zero friction.
+- **Premium Virtual Cards**: Generate a sleek, modern MVP Virtual Mastercard to manage your digital subscriptions instantly.
+- **Service Integration (Coming Soon)**: Airtime, data, TV, electricity, and sports betting wallets - all in one unified dashboard.
+- **Bank Account Management**: Seamlessly add hidden checking, savings, and corporate accounts.
+- **Top-Tier Security**: Fully protected by Firebase Authentication and advanced Firestore rules.
+- **Stunning UI/UX**: Crafted with beautiful 3D elements, ultra-smooth motion animations, and sophisticated glassmorphism effects for a truly elite vibe.
 
-**Prerequisites:**  Node.js
+## 🛠 Tech Stack
 
+- **Framework**: React 18 & Vite
+- **Styling**: Tailwind CSS & Framer Motion (for buttery-smooth animations)
+- **Icons**: Lucide React
+- **Backend/DB**: Firebase (Auth & Firestore Enterprise)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+*The future of digital finance is here. Welcome to the Zymack ecosystem.*

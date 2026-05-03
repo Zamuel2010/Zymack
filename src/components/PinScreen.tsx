@@ -107,14 +107,29 @@ export default function PinScreen({ user, isDarkMode, onSuccess }: PinScreenProp
 
   if (loading) {
     return (
-      <div className="h-[100dvh] w-full bg-[#f8f9fc] dark:bg-[#050505] flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></div>
+      <div className="fixed inset-0 w-full bg-[#f8f9fc] dark:bg-[#050505] flex items-center justify-center overflow-hidden">
+        <motion.img 
+           initial={{ scale: 0.8, opacity: 0.5 }}
+           animate={{ 
+             scale: [1, 1.1, 1],
+             opacity: [0.5, 1, 0.5]
+           }}
+           transition={{ 
+             duration: 1.5, 
+             repeat: Infinity, 
+             ease: "easeInOut" 
+           }}
+           src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
+           alt="Loading..." 
+           className="w-40 h-40 object-contain drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] dark:drop-shadow-[0_0_30px_rgba(16,185,129,0.2)] scale-125" 
+           referrerPolicy="no-referrer" 
+        />
       </div>
     );
   }
 
   return (
-    <div className="h-[100dvh] w-full bg-[#f8f9fc] dark:bg-[#050505] text-[#050505] dark:text-white flex justify-center font-sans overflow-hidden transition-colors duration-500">
+    <div className="fixed inset-0 w-full bg-[#f8f9fc] dark:bg-[#050505] text-[#050505] dark:text-white flex justify-center font-sans overflow-hidden transition-colors duration-500">
       <div className="w-full max-w-[480px] bg-white dark:bg-[#0A0A0A] h-full relative shadow-2xl flex flex-col border-x border-black/5 dark:border-white/5 transition-colors duration-500 overflow-hidden">
         
         {/* Background Gradients */}
@@ -124,15 +139,16 @@ export default function PinScreen({ user, isDarkMode, onSuccess }: PinScreenProp
         <div className="flex-1 px-6 pt-12 pb-8 flex flex-col justify-between relative z-10 w-full items-center">
           
           {/* Header */}
-          <div className="w-full flex items-center justify-center relative mb-8">
+          <div className="w-full flex flex-col items-center justify-center relative mb-8">
             {mode === 'confirm' && (
               <button 
                 onClick={() => { setMode('setup'); setConfirmPin(''); }}
-                className="absolute left-0 p-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
+                className="absolute left-0 top-0 p-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
               >
                 <ChevronLeft size={24} />
               </button>
             )}
+            <img src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" alt="Zymack Logo" className="h-8 object-contain mb-4 drop-shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" referrerPolicy="no-referrer" />
             <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center text-black/60 dark:text-white/60">
               {mode === 'verify' ? <Lock size={20} /> : <ShieldCheck size={20} />}
             </div>
@@ -148,18 +164,19 @@ export default function PinScreen({ user, isDarkMode, onSuccess }: PinScreenProp
             </p>
 
             <div className="flex gap-4 mb-2">
-              {[0, 1, 2, 3].map((index) => (
-                <motion.div 
-                  key={index}
-                  initial={false}
-                  animate={{ 
-                    scale: currentDisplay.length > index ? 1.2 : 1,
-                    backgroundColor: currentDisplay.length > index ? (isDarkMode ? '#ffffff' : '#050505') : 'transparent',
-                    borderColor: currentDisplay.length > index ? (isDarkMode ? '#ffffff' : '#050505') : (isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')
-                  }}
-                  className="w-4 h-4 rounded-full border-2 transition-colors duration-300"
-                />
-              ))}
+              {[0, 1, 2, 3].map((index) => {
+                const isActive = currentDisplay.length > index;
+                return (
+                  <div 
+                    key={index}
+                    className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
+                      isActive 
+                        ? 'bg-black border-black dark:bg-white dark:border-white scale-125' 
+                        : 'bg-transparent border-black/20 dark:border-white/20 scale-100'
+                    }`}
+                  />
+                );
+              })}
             </div>
             
             <div className="h-6 mt-4">
@@ -209,7 +226,7 @@ export default function PinScreen({ user, isDarkMode, onSuccess }: PinScreenProp
                 <button
                   key={digit}
                   onClick={() => handleKeyPress(digit.toString())}
-                  className="w-16 h-16 mx-auto rounded-full text-2xl font-medium flex items-center justify-center text-black/90 dark:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors"
+                  className="w-16 h-16 mx-auto rounded-full text-2xl font-medium flex items-center justify-center text-black/90 dark:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors touch-manipulation select-none"
                 >
                   {digit}
                 </button>
@@ -226,14 +243,14 @@ export default function PinScreen({ user, isDarkMode, onSuccess }: PinScreenProp
               
               <button
                 onClick={() => handleKeyPress('0')}
-                className="w-16 h-16 mx-auto rounded-full text-2xl font-medium flex items-center justify-center text-black/90 dark:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors"
+                className="w-16 h-16 mx-auto rounded-full text-2xl font-medium flex items-center justify-center text-black/90 dark:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors touch-manipulation select-none"
               >
                 0
               </button>
               
               <button
                 onClick={handleDelete}
-                className="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors"
+                className="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors touch-manipulation select-none"
               >
                 <Delete size={24} />
               </button>

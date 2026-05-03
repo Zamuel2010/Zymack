@@ -47,7 +47,7 @@ export default function CardScreen({ user }: CardScreenProps) {
         {/* Top Section */}
         <div className="relative z-10 flex justify-between items-start">
           <div className="flex flex-col">
-            <span className="text-white/90 font-black tracking-[0.2em] text-lg">ZYMACK</span>
+            <img src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" alt="Zymack Logo" className="h-6 object-contain" referrerPolicy="no-referrer" />
             <span className="text-white/60 text-[10px] tracking-widest uppercase mt-0.5 font-bold">Virtual</span>
           </div>
           <div className="flex items-center gap-3">

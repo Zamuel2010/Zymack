@@ -135,7 +135,7 @@ export default function DepositScreen({ user, onBack, isDarkMode }: DepositScree
                   placeholder="Search assets..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm font-medium text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl py-3 pl-12 pr-4 text-[16px] font-medium text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
               </div>
 
@@ -218,7 +218,22 @@ export default function DepositScreen({ user, onBack, isDarkMode }: DepositScree
               <div className="w-56 h-56 bg-white rounded-3xl p-4 flex items-center justify-center shadow-xl mb-8 relative">
                  <div className="w-full h-full flex items-center justify-center rounded-xl relative overflow-hidden">
                     {loadingAddress || !depositAddress ? (
-                      <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+                      <motion.img 
+                        initial={{ scale: 0.8, opacity: 0.5 }}
+                        animate={{ 
+                          scale: [1, 1.1, 1],
+                          opacity: [0.7, 1, 0.7]
+                        }}
+                        transition={{ 
+                          duration: 1.5, 
+                          repeat: Infinity, 
+                          ease: "easeInOut" 
+                        }}
+                        src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
+                        alt="Loading..." 
+                        className="w-32 h-32 object-contain drop-shadow-md scale-125" 
+                        referrerPolicy="no-referrer" 
+                      />
                     ) : (
                       <QRCode
                         value={depositAddress}

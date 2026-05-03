@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc, query, where, getDocs, collection } from 'firebase/firestore';
 import { Search, PlusCircle, CheckCircle, Loader2 } from 'lucide-react';
@@ -133,7 +134,7 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
               value={targetUid}
               onChange={(e) => setTargetUid(e.target.value)}
               placeholder="Paste user UID..."
-              className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
+              className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-[16px] text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
             />
           </div>
           
@@ -143,7 +144,7 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
                value={txHash}
                onChange={(e) => setTxHash(e.target.value)}
                placeholder="Paste transaction hash..."
-               className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
+               className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-[16px] text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
              />
           </div>
 
@@ -154,7 +155,7 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
                  value={cryptoAsset}
                  onChange={(e) => setCryptoAsset(e.target.value)}
                  placeholder="SOL, USDC, DOGE..."
-                 className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-sm uppercase text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
+                 className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-[16px] uppercase text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
                />
              </div>
              <div className="flex-1">
@@ -164,7 +165,7 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
                  onChange={(e) => setCryptoAmount(e.target.value)}
                  placeholder="0.1"
                  type="number"
-                 className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
+                 className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-[16px] text-black dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors placeholder:text-black/30 dark:placeholder:text-white/30"
                />
              </div>
           </div>
@@ -185,10 +186,31 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
           <button 
             disabled={loading}
             onClick={handleManualCredit}
-            className={`w-full bg-black dark:bg-white text-white dark:text-black font-bold py-3 px-4 rounded-xl hover:bg-black/80 dark:hover:bg-white/80 transition-colors flex justify-center items-center gap-2 mt-4 ${loading ? 'opacity-70 pointer-events-none' : ''}`}
+            className={`w-full bg-black dark:bg-white text-white dark:text-black font-bold py-3 px-4 rounded-xl hover:bg-black/80 dark:hover:bg-white/80 transition-colors flex justify-center items-center gap-2 mt-4 min-h-[48px] overflow-hidden ${loading ? 'opacity-70 pointer-events-none' : ''}`}
           >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <PlusCircle size={18} />}
-            {loading ? 'Processing...' : forceSkip ? 'Force Push Credit' : 'Verify & Push'}
+            {loading ? (
+              <motion.img 
+                initial={{ scale: 0.8, opacity: 0.5 }}
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  opacity: [0.7, 1, 0.7]
+                }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+                src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
+                alt="Loading..." 
+                className="h-8 w-8 object-contain scale-[1.5] brightness-0 invert dark:brightness-100 dark:invert-0" 
+                referrerPolicy="no-referrer" 
+              />
+            ) : (
+              <>
+                <PlusCircle size={18} />
+                {forceSkip ? 'Force Push Credit' : 'Verify & Push'}
+              </>
+            )}
           </button>
           
           {message && (

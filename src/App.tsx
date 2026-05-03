@@ -34,15 +34,24 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3000);
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setIsPinVerified(false);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      clearTimeout(splashTimer);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -171,6 +180,29 @@ export default function App() {
     }
   };
 
+  if (showSplash) {
+    return (
+      <div className="fixed inset-0 w-full bg-[#f8f9fc] dark:bg-[#050505] flex items-center justify-center overflow-hidden">
+        <motion.img 
+          initial={{ scale: 0.8, opacity: 0.5 }}
+          animate={{ 
+            scale: [1, 1.1, 1],
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{ 
+            duration: 1.5, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }}
+          src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
+          alt="Loading Zymack..." 
+          className="w-40 h-40 object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_30px_rgba(255,255,255,0.1)] scale-125" 
+          referrerPolicy="no-referrer" 
+        />
+      </div>
+    );
+  }
+
   if (user) {
     if (!isPinVerified) {
       return <PinScreen user={user} isDarkMode={isDarkMode} onSuccess={() => setIsPinVerified(true)} />;
@@ -179,7 +211,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-y-auto overflow-x-hidden p-4 sm:p-8 font-sans select-none transition-colors duration-500">
+    <div className="fixed inset-0 w-full flex items-center justify-center overflow-y-auto overflow-x-hidden p-4 sm:p-8 font-sans select-none bg-[#f8f9fc] dark:bg-[#050505] transition-colors duration-500">
       
       {/* Atmospheric Background Elements */}
       <div className="fixed top-[-10%] left-[-5%] w-[500px] h-[500px] bg-black/5 dark:bg-white/5 rounded-full blur-[120px] pointer-events-none transition-colors duration-500" />
@@ -193,14 +225,19 @@ export default function App() {
         className="z-10 w-full max-w-[420px] m-auto backdrop-blur-3xl bg-white/60 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-[32px] p-6 sm:p-10 shadow-[0_24px_80px_rgba(0,0,0,0.1)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.5)] transition-colors duration-500 my-8 sm:my-auto"
       >
         <div className="text-center mb-8">
-          <motion.h1 
+          <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.8 }}
-            className="text-3xl font-black tracking-[0.3em] mb-2 uppercase text-black dark:text-white transition-colors duration-500"
+            className="flex justify-center mb-6"
           >
-            Zymack
-          </motion.h1>
+            <img 
+              src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
+              alt="Zymack Logo" 
+              className="h-20 sm:h-24 w-auto object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+              referrerPolicy="no-referrer"
+            />
+          </motion.div>
           <p className="text-black/40 dark:text-white/40 text-xs tracking-[0.1em] uppercase transition-colors duration-500">
             {isSignUp ? 'Create Digital Asset Access' : 'Secure Digital Asset Access'}
           </p>
@@ -266,7 +303,7 @@ export default function App() {
                           required={isSignUp}
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
+                          className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-[16px] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
                           placeholder="First"
                           disabled={loading}
                         />
@@ -285,7 +322,7 @@ export default function App() {
                           required={isSignUp}
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
-                          className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
+                          className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-[16px] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
                           placeholder="Last"
                           disabled={loading}
                         />
@@ -305,7 +342,7 @@ export default function App() {
                         type="text"
                         value={referralCode}
                         onChange={(e) => setReferralCode(e.target.value)}
-                        className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50 tracking-wider uppercase font-medium"
+                        className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-[16px] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50 tracking-wider uppercase font-medium"
                         placeholder="e.g. ZYMACK24"
                         disabled={loading}
                       />
@@ -329,7 +366,7 @@ export default function App() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
+                className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-[16px] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
                 placeholder="name@domain.com"
                 disabled={loading}
               />
@@ -357,7 +394,7 @@ export default function App() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
+                className="w-full bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 rounded-xl py-3 pl-10 pr-10 text-[16px] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/20 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner disabled:opacity-50"
                 placeholder={isSignUp ? "Create a passkey" : "Enter password"}
                 disabled={loading}
               />
@@ -417,9 +454,26 @@ export default function App() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black dark:bg-white text-white dark:text-black text-sm font-bold uppercase tracking-[0.1em] py-4 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:scale-[1.01] active:scale-[0.98] transition-all mt-4 disabled:opacity-50 disabled:hover:scale-100"
+            className="w-full bg-black dark:bg-white text-white dark:text-black text-sm font-bold uppercase tracking-[0.1em] py-4 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:scale-[1.01] active:scale-[0.98] transition-all mt-4 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center h-[52px] overflow-hidden"
           >
-            {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Access Dashboard')}
+            {loading ? (
+              <motion.img 
+                initial={{ scale: 0.8, opacity: 0.5 }}
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  opacity: [0.7, 1, 0.7]
+                }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+                src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
+                alt="Loading..." 
+                className="h-10 w-10 object-contain scale-[1.5] brightness-0 invert dark:brightness-100 dark:invert-0" 
+                referrerPolicy="no-referrer" 
+              />
+            ) : (isSignUp ? 'Create Account' : 'Access Dashboard')}
           </button>
         </form>
 

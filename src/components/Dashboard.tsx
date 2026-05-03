@@ -11,6 +11,7 @@ import {
   Lock, HelpCircle, Calculator
 } from 'lucide-react';
 import DepositScreen from './DepositScreen';
+import WithdrawScreen from './WithdrawScreen';
 import NotificationsPanel from './NotificationsPanel';
 import AdminPanel from './AdminPanel';
 import CalculatorModal from './CalculatorModal';
@@ -29,6 +30,7 @@ interface DashboardProps {
 export default function Dashboard({ user, isDarkMode, toggleDarkMode }: DashboardProps) {
   const [copied, setCopied] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
@@ -180,7 +182,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
   };
 
   return (
-    <div className="h-[100dvh] w-full bg-[#f8f9fc] dark:bg-[#050505] text-[#050505] dark:text-white flex justify-center font-sans transition-colors duration-500 overflow-hidden">
+    <div className="fixed inset-0 w-full bg-[#f8f9fc] dark:bg-[#050505] text-[#050505] dark:text-white flex justify-center font-sans transition-colors duration-500 overflow-hidden">
       <div className="w-full max-w-[480px] bg-white dark:bg-[#0A0A0A] h-full relative shadow-2xl flex flex-col border-x border-black/5 dark:border-white/5 transition-colors duration-500 overflow-hidden">
         
         <style>
@@ -274,6 +276,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                     <span className="text-[11px] font-bold text-black/80 dark:text-white/80 tracking-wide transition-colors duration-500">Deposit</span>
                   </button>
                   <button 
+                    onClick={() => setShowWithdraw(true)}
                     className="flex-1 flex flex-col items-center justify-center py-3 px-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition-colors"
                   >
                     <div className="w-11 h-11 rounded-full bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 text-black dark:text-white flex items-center justify-center mb-2 transition-colors duration-500">
@@ -613,6 +616,19 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
               className="absolute inset-0 z-50 rounded-t-[32px] overflow-hidden"
             >
               <DepositScreen onBack={() => setShowDeposit(false)} isDarkMode={isDarkMode} user={user} />
+            </motion.div>
+          )}
+
+          {/* Withdraw Screen Overlay */}
+          {showWithdraw && (
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute inset-0 z-50 rounded-[32px] sm:rounded-none overflow-hidden"
+            >
+              <WithdrawScreen user={user} balance={balance || 0} onBack={() => setShowWithdraw(false)} />
             </motion.div>
           )}
 

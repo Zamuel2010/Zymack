@@ -9,7 +9,7 @@ export default function ServicesScreen() {
       name: 'Airtime Recharge',
       description: 'Instant top-up for all networks',
       icon: <Smartphone size={24} />,
-      image: 'https://picsum.photos/seed/mobiletopup/400/300?blur=2',
+      image: 'https://i.postimg.cc/tRr1hB5f/IMG-4051.png',
       color: 'bg-blue-500'
     },
     {

@@ -7,6 +7,10 @@
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
 }
 
+html, body {
+  overscroll-behavior: none;
+}
+
 body {
   font-family: var(--font-sans);
   min-height: 100vh;
