@@ -9,11 +9,26 @@
 
 html, body {
   overscroll-behavior: none;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 body {
   font-family: var(--font-sans);
-  min-height: 100vh;
   margin: 0;
   @apply bg-[#f8f9fc] text-[#050505];
 }

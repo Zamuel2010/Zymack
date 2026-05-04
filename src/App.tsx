@@ -15,7 +15,8 @@ import {
   User,
   updateProfile
 } from 'firebase/auth';
-import { auth, googleProvider, appleProvider } from './lib/firebase';
+import { auth, googleProvider, appleProvider, db } from './lib/firebase';
+import { collection, doc, query, where, getDocs, setDoc, getDoc, runTransaction, onSnapshot } from 'firebase/firestore';
 
 import Dashboard from './components/Dashboard';
 import PinScreen from './components/PinScreen';
@@ -41,18 +42,33 @@ export default function App() {
       setShowSplash(false);
     }, 3000);
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setIsPinVerified(false);
       }
     });
-
+    
     return () => {
       clearTimeout(splashTimer);
-      unsubscribe();
+      unsubscribeAuth();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    // Listen for ban status changes
+    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+       if (docSnap.exists() && docSnap.data().isBanned) {
+          auth.signOut();
+          setError("Your account has been restricted by an administrator.");
+          setUser(null);
+       }
+    });
+
+    return () => unsubUser();
+  }, [user]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -89,6 +105,66 @@ export default function App() {
         await updateProfile(userCredential.user, {
           displayName: `${firstName} ${lastName}`.trim()
         });
+
+        // Save referral info
+        let referrerUid = null;
+        if (referralCode && referralCode.trim() !== '') {
+           try {
+              const allUsers = await getDocs(collection(db, 'users'));
+              for (const d of allUsers.docs) {
+                 if (d.id.substring(0, 8).toUpperCase() === referralCode.trim().toUpperCase()) {
+                    referrerUid = d.id;
+                    break;
+                 }
+              }
+           } catch(e) {
+              console.error("Error finding referrer", e);
+           }
+        }
+
+        try {
+           await setDoc(doc(db, 'users', userCredential.user.uid), {
+             email,
+             firstName,
+             lastName,
+             referredBy: referrerUid || null,
+             referralCode: userCredential.user.uid.substring(0,8).toUpperCase(),
+             createdAt: new Date().toISOString()
+           }, { merge: true });
+
+           if (referrerUid) {
+              const rbWallet = doc(db, 'wallets', referrerUid);
+              const txRef = doc(collection(db, 'wallets', referrerUid, 'transactions'));
+              
+              const rbSnap = await getDoc(rbWallet);
+              if (rbSnap.exists()) {
+                 const currentBalance = rbSnap.data().totalBalance || 0;
+                 await setDoc(rbWallet, { totalBalance: currentBalance + 500 }, { merge: true });
+                 await setDoc(txRef, {
+                    type: 'deposit',
+                    amount: 500,
+                    title: 'Referral Bonus',
+                    status: 'completed',
+                    createdAt: new Date().toISOString(),
+                    isRead: false,
+                    txId: txRef.id
+                 });
+              } else {
+                 await setDoc(rbWallet, { totalBalance: 500, currency: 'NGN', createdAt: new Date().toISOString() });
+                 await setDoc(txRef, {
+                    type: 'deposit',
+                    amount: 500,
+                    title: 'Referral Bonus',
+                    status: 'completed',
+                    createdAt: new Date().toISOString(),
+                    isRead: false,
+                    txId: txRef.id
+                 });
+              }
+           }
+        } catch(e) {
+           console.error("Error saving user data", e);
+        }
       } else {
         if (!email || !password) {
           throw new Error("Please enter your email and password.");
