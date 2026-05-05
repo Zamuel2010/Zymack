@@ -133,33 +133,18 @@ export default function App() {
            }, { merge: true });
 
            if (referrerUid) {
-              const rbWallet = doc(db, 'wallets', referrerUid);
-              const txRef = doc(collection(db, 'wallets', referrerUid, 'transactions'));
-              
-              const rbSnap = await getDoc(rbWallet);
-              if (rbSnap.exists()) {
-                 const currentBalance = rbSnap.data().totalBalance || 0;
-                 await setDoc(rbWallet, { totalBalance: currentBalance + 500 }, { merge: true });
-                 await setDoc(txRef, {
-                    type: 'deposit',
-                    amount: 500,
-                    title: 'Referral Bonus',
-                    status: 'completed',
-                    createdAt: new Date().toISOString(),
-                    isRead: false,
-                    txId: txRef.id
-                 });
-              } else {
-                 await setDoc(rbWallet, { totalBalance: 500, currency: 'NGN', createdAt: new Date().toISOString() });
-                 await setDoc(txRef, {
-                    type: 'deposit',
-                    amount: 500,
-                    title: 'Referral Bonus',
-                    status: 'completed',
-                    createdAt: new Date().toISOString(),
-                    isRead: false,
-                    txId: txRef.id
-                 });
+              try {
+                const token = await userCredential.user.getIdToken();
+                await fetch('/api/referral/claim', {
+                   method: 'POST',
+                   headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                   },
+                   body: JSON.stringify({ referrerUid })
+                });
+              } catch(e) {
+                console.error("Error claiming referral bonus", e);
               }
            }
         } catch(e) {

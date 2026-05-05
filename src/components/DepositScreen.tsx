@@ -34,48 +34,56 @@ export default function DepositScreen({ user, onBack, isDarkMode }: DepositScree
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const fetchAddress = async (forceRefresh: boolean = false) => {
+    if (!selectedCrypto || !selectedNetwork) return;
+    setLoadingAddress(true);
+    try {
+       const id = `${selectedCrypto.id}_${selectedNetwork.replace(/[^a-zA-Z0-9]/g, '')}`;
+       const docRef = doc(db, 'wallets', user.uid, 'addresses', id);
+       
+       if (!forceRefresh) {
+         const snap = await getDoc(docRef);
+         if (snap.exists()) {
+            setDepositAddress(snap.data().address);
+            setLoadingAddress(false);
+            return;
+         }
+       }
+       
+       // Call our backend API which integrates with Tatum
+       const response = await fetch('/api/tatum/wallet', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           crypto: selectedCrypto.id,
+           network: selectedNetwork,
+           uid: user.uid,
+           refresh: forceRefresh
+         })
+       });
+       
+       if (!response.ok) {
+         throw new Error("Failed to generate deposit address");
+       }
+
+       const { address } = await response.json();
+       
+       await setDoc(docRef, {
+          cryptoId: selectedCrypto.id,
+          network: selectedNetwork,
+          address: address,
+          createdAt: new Date().toISOString()
+       });
+       setDepositAddress(address);
+    } catch(e) {
+       console.error(e);
+    } finally {
+       setLoadingAddress(false);
+    }
+  };
+
   useEffect(() => {
     if (step === 'address' && selectedCrypto && selectedNetwork) {
-      const fetchAddress = async () => {
-        setLoadingAddress(true);
-        try {
-           const id = `${selectedCrypto.id}_${selectedNetwork.replace(/[^a-zA-Z0-9]/g, '')}`;
-           const docRef = doc(db, 'wallets', user.uid, 'addresses', id);
-           const snap = await getDoc(docRef);
-           if (snap.exists()) {
-              setDepositAddress(snap.data().address);
-           } else {
-              // Call our backend API which integrates with Tatum
-              const response = await fetch('/api/tatum/wallet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  crypto: selectedCrypto.id,
-                  network: selectedNetwork,
-                  uid: user.uid
-                })
-              });
-              
-              if (!response.ok) {
-                throw new Error("Failed to generate deposit address");
-              }
-
-              const { address } = await response.json();
-              
-              await setDoc(docRef, {
-                 cryptoId: selectedCrypto.id,
-                 network: selectedNetwork,
-                 address: address,
-                 createdAt: new Date().toISOString()
-              });
-              setDepositAddress(address);
-           }
-        } catch(e) {
-           console.error(e);
-        } finally {
-           setLoadingAddress(false);
-        }
-      };
       fetchAddress();
     }
   }, [step, selectedCrypto, selectedNetwork, user.uid]);
@@ -288,6 +296,16 @@ export default function DepositScreen({ user, onBack, isDarkMode }: DepositScree
                   Send only {selectedCrypto.symbol} to this deposit address through the {selectedNetwork} network. Sending any other coin or token may result in the loss of your deposit.
                 </p>
               </div>
+
+              {(selectedCrypto.id === 'sol' || selectedCrypto.id === 'xrp') && (
+                <button
+                  onClick={() => fetchAddress(true)}
+                  disabled={loadingAddress}
+                  className="mt-4 w-full py-3 bg-black/5 dark:bg-white/5 rounded-xl text-sm font-bold text-black/80 dark:text-white/80 hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-50 transition-colors"
+                >
+                  {loadingAddress ? 'Generating...' : 'Regenerate Deposit Address'}
+                </button>
+              )}
 
             </motion.div>
           )}

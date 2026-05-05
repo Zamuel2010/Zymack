@@ -8,7 +8,7 @@ import {
   Home, Activity, User as UserIcon, Copy, Check,
   QrCode, TrendingUp, History, CreditCard, ChevronRight,
   LogOut, Plus, Wallet, Sun, Moon, LayoutGrid, Gift, ShieldCheck, Users,
-  Lock, HelpCircle, Calculator
+  Lock, HelpCircle, Calculator, Loader2
 } from 'lucide-react';
 import DepositScreen from './DepositScreen';
 import WithdrawScreen from './WithdrawScreen';
@@ -20,6 +20,7 @@ import ReferralScreen from './ReferralScreen';
 import BankAccountsScreen from './BankAccountsScreen';
 import ServicesScreen from './ServicesScreen';
 import CardScreen from './CardScreen';
+import EditProfileScreen from './EditProfileScreen';
 
 interface DashboardProps {
   user: User;
@@ -34,11 +35,50 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [showBankAccounts, setShowBankAccounts] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Home');
   const [balance, setBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [userData, setUserData] = useState<any>(null);
+
+  // Pull-to-refresh state
+  const [startY, setStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.currentTarget as HTMLElement;
+    if (target.scrollTop === 0) {
+      setStartY(e.touches[0].clientY);
+    } else {
+      setStartY(0);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY === 0 || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+    if (diff > 0) {
+      setPullDistance(Math.min(diff * 0.4, 80)); 
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 50 && !isRefreshing) {
+      setIsRefreshing(true);
+      // Simulate refetch since onSnapshot is already active
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }, 1500);
+    } else {
+      setPullDistance(0);
+    }
+    setStartY(0);
+  };
 
   const unreadCount = transactions.filter(tx => !tx.isRead).length;
 
@@ -80,9 +120,17 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
       console.error("Transactions snapshot error:", err);
     });
 
+    const userRef = doc(db, 'users', user.uid);
+    const unsubUser = onSnapshot(userRef, (snapshot) => {
+       if (snapshot.exists()) {
+          setUserData(snapshot.data());
+       }
+    });
+
     return () => {
       unsubWallet();
       unsubTx();
+      unsubUser();
     };
   }, [user]);
 
@@ -123,11 +171,17 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
           <div className="flex justify-between items-center px-6 pt-12 pb-6 relative z-10 w-full">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden transition-colors duration-500">
-                <UserIcon size={20} className="text-black/60 dark:text-white/60 transition-colors duration-500" />
+                {userData?.profilePic || user.photoURL ? (
+                  <img src={userData?.profilePic || user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <UserIcon size={20} className="text-black/60 dark:text-white/60 transition-colors duration-500" />
+                )}
               </div>
               <div>
                 <p className="text-black/40 dark:text-white/40 text-[10px] tracking-widest uppercase mb-0.5 transition-colors duration-500">Welcome back</p>
-                <h2 className="text-sm font-bold text-black/90 dark:text-white/90 transition-colors duration-500">{user.displayName || 'Anonymous User'}</h2>
+                <h2 className="text-sm font-bold text-black/90 dark:text-white/90 transition-colors duration-500">
+                  {userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : user.displayName || 'Anonymous User'}
+                </h2>
                 <button 
                   onClick={copyId}
                   className="flex items-center gap-1.5 mt-1 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 px-2 py-0.5 rounded transition-colors"
@@ -162,8 +216,27 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
         )}
 
         {/* Main Content Area */}
-        <div className="flex-1 px-6 pb-32 relative z-10 w-full pt-4 overflow-y-auto hidden-scrollbar">
-          
+        <div 
+          className="flex-1 px-6 pb-32 relative z-10 w-full pt-4 overflow-y-auto hidden-scrollbar"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Pull to refresh visual */}
+          <motion.div 
+            className="w-full flex justify-center overflow-hidden"
+            animate={{ height: isRefreshing ? 60 : pullDistance }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          >
+            <div className="h-full flex items-center justify-center opacity-70">
+               {isRefreshing ? (
+                 <Loader2 size={24} className="animate-spin text-black dark:text-white" />
+               ) : (
+                 <ArrowDownLeft size={24} className="text-black dark:text-white" style={{ transform: `rotate(${Math.min(pullDistance * 3, 180)}deg)` }} />
+               )}
+            </div>
+          </motion.div>
+
           {activeTab === 'Home' && (
             <>
               {/* Total Balance Card */}
@@ -280,7 +353,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
           )}
 
           {activeTab === 'Services' && (
-            <ServicesScreen />
+            <ServicesScreen user={user} />
           )}
 
           {activeTab === 'Cards' && (
@@ -292,10 +365,16 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
               {/* Account Header */}
               <div className="flex flex-col items-center gap-3 mb-10 text-center w-full mt-4">
                 <div className="w-20 h-20 rounded-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-sm">
-                  <UserIcon size={36} className="text-black/60 dark:text-white/60" />
+                  {userData?.profilePic || user.photoURL ? (
+                    <img src={userData?.profilePic || user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon size={36} className="text-black/60 dark:text-white/60" />
+                  )}
                 </div>
                 <div className="flex flex-col items-center">
-                  <h3 className="text-2xl font-black tracking-tight text-black/90 dark:text-white/90">{user.displayName || 'Anonymous User'}</h3>
+                  <h3 className="text-2xl font-black tracking-tight text-black/90 dark:text-white/90">
+                    {userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : user.displayName || 'Anonymous User'}
+                  </h3>
                   <div className="flex flex-col items-center mt-1">
                     <span 
                       onClick={copyId}
@@ -323,14 +402,17 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                      </div>
                      <div>
                        <h4 className="font-bold text-sm text-black/90 dark:text-white/90">Refer and Earn</h4>
-                       <p className="text-xs text-black/50 dark:text-white/50 font-medium">Invite your friends and earn on spenda</p>
+                       <p className="text-xs text-black/50 dark:text-white/50 font-medium">Invite your friends and earn on Zymack</p>
                      </div>
                    </div>
                    <ChevronRight size={18} className="text-black/40 dark:text-white/40" />
                 </div>
 
                 {/* My profile */}
-                <div className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group">
+                <div 
+                   onClick={() => setShowEditProfile(true)}
+                   className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                >
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 text-black/70 dark:text-white/70 flex items-center justify-center">
                        <UserIcon size={20} />
@@ -560,6 +642,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
             >
               <NotificationsPanel 
                 onBack={() => setShowNotifications(false)} 
+                uid={user?.uid || ''}
                 transactions={transactions} 
                 isDarkMode={isDarkMode} 
                 onSelectTx={(tx) => {
@@ -582,6 +665,21 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
               <CalculatorModal onBack={() => setShowCalculator(false)} uid={user.uid} />
             </motion.div>
           )}
+
+          {/* Edit Profile Overlay */}
+          <AnimatePresence>
+            {showEditProfile && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute inset-0 z-50 overflow-hidden"
+              >
+                <EditProfileScreen onBack={() => setShowEditProfile(false)} user={user} isDarkMode={isDarkMode} />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Referral Screen Overlay */}
           {showReferral && (

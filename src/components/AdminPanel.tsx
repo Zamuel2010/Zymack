@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc, query, where, getDocs, collection, updateDoc, orde
 import { Search, PlusCircle, CheckCircle, Loader2, ShieldAlert, User as UserIcon, Wallet, Activity, Ban, Settings2, RefreshCw, XCircle } from 'lucide-react';
 
 export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
-  const [activeTab, setActiveTab] = useState<'credit' | 'users'>('users');
+  const [activeTab, setActiveTab] = useState<'credit' | 'users' | 'vtu'>('users');
   
   // Tab: Credit
   const [targetUid, setTargetUid] = useState('');
@@ -214,6 +214,104 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
      }
   };
 
+  // Tab: VTU Pricing
+  const [vtuData, setVtuData] = useState<Record<string, { id: string, name: string, price: number }[]>>({});
+  const [vtuLoading, setVtuLoading] = useState(false);
+  const [vtuMessage, setVtuMessage] = useState('');
+  const [selectedNetwork, setSelectedNetwork] = useState('MTN');
+
+  React.useEffect(() => {
+     if (activeTab === 'vtu') {
+        const fetchVtu = async () => {
+           setVtuLoading(true);
+           try {
+              const docSnap = await getDoc(doc(db, 'admin_settings', 'vtu'));
+              if (docSnap.exists() && docSnap.data().dataPlans && Object.keys(docSnap.data().dataPlans).length > 0) {
+                 setVtuData(docSnap.data().dataPlans);
+              } else {
+                 setVtuData({
+                    MTN: [
+                      { id: 'mtn_500mb_sme', name: '500MB (SME)', price: 185 },
+                      { id: 'mtn_1gb_sme', name: '1GB (SME)', price: 305 },
+                      { id: 'mtn_2gb_sme', name: '2GB (SME)', price: 560 },
+                      { id: 'mtn_3gb_sme', name: '3GB (SME)', price: 815 },
+                      { id: 'mtn_5gb_sme', name: '5GB (SME)', price: 1325 },
+                      { id: 'mtn_10gb_sme', name: '10GB (SME)', price: 2600 }
+                    ],
+                    AIRTEL: [
+                      { id: 'airtel_500mb', name: '500MB (CG)', price: 190 },
+                      { id: 'airtel_1gb', name: '1GB (CG)', price: 325 },
+                      { id: 'airtel_2gb', name: '2GB (CG)', price: 600 },
+                      { id: 'airtel_5gb', name: '5GB (CG)', price: 1425 },
+                      { id: 'airtel_10gb', name: '10GB (CG)', price: 2800 },
+                    ],
+                    GLO: [
+                      { id: 'glo_500mb', name: '500MB (CG)', price: 185 },
+                      { id: 'glo_1gb', name: '1GB (CG)', price: 305 },
+                      { id: 'glo_2gb', name: '2GB (CG)', price: 560 },
+                      { id: 'glo_3gb', name: '3GB (CG)', price: 815 },
+                      { id: 'glo_5gb', name: '5GB (CG)', price: 1325 },
+                      { id: 'glo_10gb', name: '10GB (CG)', price: 2600 }
+                    ],
+                    '9MOBILE': [
+                      { id: '9m_500mb', name: '500MB (SME)', price: 170 },
+                      { id: '9m_1gb', name: '1GB (SME)', price: 290 },
+                      { id: '9m_2gb', name: '2GB (SME)', price: 530 },
+                      { id: '9m_3gb', name: '3GB (SME)', price: 770 },
+                      { id: '9m_5gb', name: '5GB (SME)', price: 1250 },
+                      { id: '9m_10gb', name: '10GB (SME)', price: 2450 }
+                    ]
+                 });
+              }
+           } catch (e) {
+              setVtuMessage("Error fetching VTU config.");
+           } finally {
+              setVtuLoading(false);
+           }
+        };
+        fetchVtu();
+     }
+  }, [activeTab]);
+
+  const handleSaveVtu = async () => {
+     setVtuLoading(true);
+     setVtuMessage('');
+     try {
+        await setDoc(doc(db, 'admin_settings', 'vtu'), { dataPlans: vtuData }, { merge: true });
+        setVtuMessage("Success: Saved VTU settings!");
+     } catch (e) {
+        setVtuMessage("Error: Failed to save.");
+     } finally {
+        setVtuLoading(false);
+     }
+  };
+
+  const handleSyncPeyflex = async () => {
+     if (!confirm("This will overwrite your existing pricing with exact amounts from Peyflex. Are you sure?")) return;
+     setVtuLoading(true);
+     setVtuMessage('');
+     try {
+        const res = await fetch("/api/admin/sync-peyflex", { method: "POST" });
+        const data = await res.json();
+        if (data.success && data.dataPlans) {
+           setVtuData(data.dataPlans);
+           setVtuMessage("Success: Fetched and saved latest plans from Peyflex!");
+        } else {
+           setVtuMessage("Error: Failed to sync from Peyflex properly.");
+        }
+     } catch (e) {
+        setVtuMessage("Error: Failed to fetch from sync API.");
+     } finally {
+        setVtuLoading(false);
+     }
+  };
+
+  const updatePlan = (network: string, planIndex: number, field: string, value: string | number) => {
+    const updatedPlans = [...vtuData[network]];
+    updatedPlans[planIndex] = { ...updatedPlans[planIndex], [field]: value };
+    setVtuData({ ...vtuData, [network]: updatedPlans });
+  };
+
   const handleUpdateBalance = async () => {
      if (!userData) return;
      const parsedBalance = parseFloat(newBalance);
@@ -260,23 +358,112 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
       <h2 className="text-xl font-bold text-black dark:text-white mb-6 shrink-0">Admin Dashboard</h2>
       
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 shrink-0 bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
+      <div className="flex gap-2 mb-6 shrink-0 bg-black/5 dark:bg-white/5 p-1 rounded-2xl overflow-x-auto hide-scrollbar">
          <button 
            onClick={() => setActiveTab('users')}
-           className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'users' ? 'bg-white dark:bg-[#222] text-black dark:text-white shadow-sm' : 'text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white'}`}
+           className={`flex-none px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'users' ? 'bg-white dark:bg-[#222] text-black dark:text-white shadow-sm' : 'text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white'}`}
          >
             User Management
          </button>
          <button 
            onClick={() => setActiveTab('credit')}
-           className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'credit' ? 'bg-white dark:bg-[#222] text-black dark:text-white shadow-sm' : 'text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white'}`}
+           className={`flex-none px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'credit' ? 'bg-white dark:bg-[#222] text-black dark:text-white shadow-sm' : 'text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white'}`}
          >
             Force Credit
+         </button>
+         <button 
+           onClick={() => setActiveTab('vtu')}
+           className={`flex-none px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'vtu' ? 'bg-white dark:bg-[#222] text-black dark:text-white shadow-sm' : 'text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white'}`}
+         >
+            VTU Pricing
          </button>
       </div>
 
       <div className="flex-1 overflow-y-auto hidden-scrollbar pb-10">
-      {activeTab === 'credit' ? (
+      {activeTab === 'vtu' && (
+         <div className="bg-white/40 dark:bg-[#111111]/80 border border-black/10 dark:border-white/10 rounded-3xl p-6 shadow-sm backdrop-blur-xl h-full flex flex-col">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+              <h3 className="font-bold text-black dark:text-white">VTU Data Plans Pricing</h3>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleSyncPeyflex} 
+                  disabled={vtuLoading}
+                  className="bg-black/5 dark:bg-white/5 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 border border-black/10 dark:border-white/10"
+                >
+                   {vtuLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                   Sync Peyflex Plans
+                </button>
+                <button 
+                  onClick={handleSaveVtu} 
+                  disabled={vtuLoading}
+                  className="bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2"
+                >
+                   {vtuLoading ? <Loader2 size={16} className="animate-spin" /> : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+            
+            <p className="text-sm text-black/60 dark:text-white/60 mb-4 font-medium leading-relaxed">
+              Select a network to update its available VTU plans. Adjust the prices directly and save.
+            </p>
+
+            {vtuMessage && (
+               <div className={`mb-4 text-sm font-medium p-4 rounded-xl flex items-start gap-3 backdrop-blur-sm shadow-inner tracking-wide ${vtuMessage.includes("Error") ? "bg-red-500/10 border border-red-500/20 text-red-500" : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"}`}>
+                 {vtuMessage.includes("Error") ? <XCircle size={18} className="shrink-0 mt-0.5" /> : <CheckCircle size={18} className="shrink-0 mt-0.5" />}
+                 <span className="leading-snug">{vtuMessage}</span>
+               </div>
+            )}
+
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-6 pb-2">
+              {['MTN', 'AIRTEL', 'GLO', '9MOBILE'].map(net => (
+                <button
+                  key={net}
+                  onClick={() => setSelectedNetwork(net)}
+                  className={`flex-none px-6 py-2 rounded-xl text-sm font-bold transition-all ${selectedNetwork === net ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                >
+                  {net}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto hidden-scrollbar space-y-4 pr-2">
+              {vtuData[selectedNetwork]?.map((plan, index) => (
+                <div key={plan.id} className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4">
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-black/50 dark:text-white/50 block mb-1 px-1">Plan ID</label>
+                    <input 
+                       value={plan.id} 
+                       onChange={(e) => updatePlan(selectedNetwork, index, 'id', e.target.value)}
+                       className="w-full bg-white dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-black dark:text-white font-mono focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner" 
+                    />
+                  </div>
+                  <div className="flex-[2]">
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-black/50 dark:text-white/50 block mb-1 px-1">Plan Name (e.g. 1GB SME)</label>
+                    <input 
+                       value={plan.name} 
+                       onChange={(e) => updatePlan(selectedNetwork, index, 'name', e.target.value)}
+                       className="w-full bg-white dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-black dark:text-white font-bold focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner" 
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-black/50 dark:text-white/50 block mb-1 px-1">Price (₦)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40 font-bold">₦</span>
+                      <input 
+                         type="number"
+                         value={plan.price} 
+                         onChange={(e) => updatePlan(selectedNetwork, index, 'price', Number(e.target.value))}
+                         className="w-full bg-white dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-xl pl-8 pr-3 py-2 text-sm text-black dark:text-white font-bold focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all shadow-inner" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+         </div>
+      )}
+
+      {activeTab === 'credit' && (
         <div className="bg-white/40 dark:bg-[#111111]/80 border border-black/10 dark:border-white/10 rounded-3xl p-6 shadow-sm backdrop-blur-xl">
           <h3 className="font-bold text-black dark:text-white mb-4">Verify & Push Missing Deposit</h3>
           <p className="text-sm text-black/60 dark:text-white/60 mb-6 font-medium leading-relaxed">
@@ -360,7 +547,9 @@ export default function AdminPanel({ isDarkMode }: { isDarkMode: boolean }) {
             )}
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'users' && (
         <div className="space-y-6">
           <div className="bg-white/40 dark:bg-[#111111]/80 border border-black/10 dark:border-white/10 rounded-3xl p-6 shadow-sm backdrop-blur-xl">
             <h3 className="font-bold text-black dark:text-white mb-4">User Search</h3>

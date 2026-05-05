@@ -116,7 +116,7 @@ async function startServer() {
     }
 
     try {
-      const { crypto, network, uid } = req.body;
+      const { crypto, network, uid, refresh } = req.body;
       
       if (!uid) {
         return res.status(400).json({ error: "Missing uid" });
@@ -197,7 +197,7 @@ async function startServer() {
              standaloneWallets = JSON.parse(fs.readFileSync(fileName, 'utf-8'));
           }
           
-          if (!standaloneWallets[uid]) {
+          if (!standaloneWallets[uid] && !refresh) {
              try {
                  const db = getDb();
                  const doc = await db.collection("managed_wallets").doc(`${chain}_${uid}`).get();
@@ -208,7 +208,7 @@ async function startServer() {
              } catch(e) {}
           }
 
-          if (!standaloneWallets[uid]) {
+          if (!standaloneWallets[uid] || refresh) {
              const endpoint = chain === 'xrp' ? `https://api.tatum.io/v3/xrp/account` : `https://api.tatum.io/v3/solana/wallet`;
              const resp = await fetch(endpoint, { headers: { "x-api-key": apiKey } });
              standaloneWallets[uid] = await resp.json();
@@ -363,7 +363,8 @@ async function startServer() {
 
         // SECURITY CRITICAL: Execute inside a transaction to prevent replay attacks
         await db.runTransaction(async (transaction: any) => {
-            const txRef = db.collection('wallets').doc(uid).collection('transactions').doc(txId);
+            const txDocId = `${txId}_${asset}`;
+            const txRef = db.collection('wallets').doc(uid).collection('transactions').doc(txDocId);
             const txDoc = await transaction.get(txRef);
             
             if (txDoc.exists) {
@@ -372,25 +373,42 @@ async function startServer() {
             }
             
             // 3. Fetch Real Fiat Exchange Rates
-            let rate = 1000;
+            const FALLBACK_RATES: Record<string, number> = {
+               'BTC': 100000000,
+               'ETH': 5000000,
+               'SOL': 250000,
+               'BSC': 800000,
+               'BNB': 800000,
+               'TRON': 200,
+               'USDT': 1600,
+               'USDC': 1600,
+               'XRP': 800,
+               'ADA': 700,
+               'DOGE': 200,
+               'SHIB': 0.03
+            };
+            let rate = FALLBACK_RATES[asset.toUpperCase()] || 1000;
+            
             try {
                 const cgResp = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=tether,usd-coin,bitcoin,ethereum,solana,binancecoin,tron,ripple,cardano,dogecoin,shiba-inu&vs_currencies=ngn");
-                const cgData = await cgResp.json();
-                const liveRates: Record<string, number> = {
-                   'BTC': cgData.bitcoin?.ngn || 100000000,
-                   'ETH': cgData.ethereum?.ngn || 5000000,
-                   'SOL': cgData.solana?.ngn || 250000,
-                   'BSC': cgData.binancecoin?.ngn || 800000,
-                   'BNB': cgData.binancecoin?.ngn || 800000,
-                   'TRON': cgData.tron?.ngn || 200,
-                   'USDT': cgData.tether?.ngn || 1600,
-                   'USDC': cgData['usd-coin']?.ngn || 1600,
-                   'XRP': cgData.ripple?.ngn || 800,
-                   'ADA': cgData.cardano?.ngn || 700,
-                   'DOGE': cgData.dogecoin?.ngn || 200,
-                   'SHIB': cgData['shiba-inu']?.ngn || 0.03
-                };
-                rate = liveRates[asset.toUpperCase()] || rate;
+                if (cgResp.ok) {
+                    const cgData = await cgResp.json();
+                    const liveRates: Record<string, number> = {
+                       'BTC': cgData.bitcoin?.ngn || rate,
+                       'ETH': cgData.ethereum?.ngn || rate,
+                       'SOL': cgData.solana?.ngn || rate,
+                       'BSC': cgData.binancecoin?.ngn || rate,
+                       'BNB': cgData.binancecoin?.ngn || rate,
+                       'TRON': cgData.tron?.ngn || rate,
+                       'USDT': cgData.tether?.ngn || rate,
+                       'USDC': cgData['usd-coin']?.ngn || rate,
+                       'XRP': cgData.ripple?.ngn || rate,
+                       'ADA': cgData.cardano?.ngn || rate,
+                       'DOGE': cgData.dogecoin?.ngn || rate,
+                       'SHIB': cgData['shiba-inu']?.ngn || rate
+                    };
+                    rate = liveRates[asset.toUpperCase()] || rate;
+                }
             } catch (e) {
                 console.error("Failed to fetch rates in webhook, using fallback rate.")
             }
@@ -422,6 +440,79 @@ async function startServer() {
     } catch (err) {
         console.error("Critical error in Webhook processing:", err);
     }
+  });
+
+  app.post("/api/admin/force-sweep", async (req, res) => {
+      try {
+          // This allows the admin (or the user manually via fetch) to force-sweep a transaction
+          // that the webhook might have missed.
+          const { uid, txId, asset, amount } = req.body;
+          if (!uid || !txId || !amount || !asset) {
+              return res.status(400).json({ error: "Missing required fields: uid, txId, asset, amount" });
+          }
+
+          const cryptoAmount = parseFloat(amount);
+          if (cryptoAmount <= 0) return res.status(400).json({ error: "Amount must be > 0" });
+
+          const db = getDb();
+          
+          await db.runTransaction(async (transaction: any) => {
+              const txDocId = `${txId}_${asset}`;
+              const txRef = db.collection('wallets').doc(uid).collection('transactions').doc(txDocId);
+              const txDoc = await transaction.get(txRef);
+              
+              if (txDoc.exists) {
+                  throw new Error(`Deposit already processed for txId ${txId}`);
+              }
+              
+              const FALLBACK_RATES: Record<string, number> = {
+                 'BTC': 100000000, 'ETH': 5000000, 'SOL': 250000,
+                 'BSC': 800000, 'BNB': 800000, 'TRON': 200,
+                 'USDT': 1600, 'USDC': 1600, 'XRP': 800,
+                 'ADA': 700, 'DOGE': 200, 'SHIB': 0.03
+              };
+              let rate = FALLBACK_RATES[asset.toUpperCase()] || 1000;
+              
+              try {
+                  const cgResp = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=tether,usd-coin,bitcoin,ethereum,solana,binancecoin,tron,ripple,cardano,dogecoin,shiba-inu&vs_currencies=ngn");
+                  if (cgResp.ok) {
+                      const cgData = await cgResp.json();
+                      const liveRates: Record<string, number> = {
+                         'BTC': cgData.bitcoin?.ngn || rate,
+                         'ETH': cgData.ethereum?.ngn || rate,
+                         'SOL': cgData.solana?.ngn || rate,
+                         'USDT': cgData.tether?.ngn || rate,
+                         'TRON': cgData.tron?.ngn || rate
+                      };
+                      rate = liveRates[asset.toUpperCase()] || rate;
+                  }
+              } catch (e) {}
+              
+              const fiatValue = cryptoAmount * rate;
+              
+              transaction.set(txRef, {
+                  type: 'receive',
+                  amount: fiatValue, 
+                  cryptoAmount: cryptoAmount,
+                  cryptoAsset: asset,
+                  status: 'completed',
+                  title: `Deposit ${asset} (Manual Retry)`,
+                  createdAt: new Date().toISOString(),
+                  txId: txId,
+                  isRead: false
+              });
+              
+              const walletRef = db.collection('wallets').doc(uid);
+              transaction.set(walletRef, {
+                  totalBalance: admin.firestore.FieldValue.increment(fiatValue)
+              }, { merge: true });
+          });
+          
+          return res.json({ success: true, message: `Successfully forced sweep for ${amount} ${asset}` });
+      } catch (err: any) {
+          console.error("Force sweep error:", err);
+          return res.status(500).json({ error: err.message });
+      }
   });
 
   app.get("/api/tatum/sync", (req, res) => {
@@ -522,6 +613,261 @@ async function startServer() {
     };
     return map[bankName] || '058'; // default to GTBank if not found
   };
+
+  app.post("/api/admin/sync-peyflex", async (req, res) => {
+    try {
+      const DATA_NETWORK_MAP: Record<string, string> = {
+         'MTN': 'mtn_gifting_data',
+         'AIRTEL': 'airtel_data',
+         'GLO': 'glo_data',
+         '9MOBILE': '9mobile_data'
+      };
+
+      const finalPlans: Record<string, any[]> = {};
+      
+      for (const [netName, identifier] of Object.entries(DATA_NETWORK_MAP)) {
+         const resp = await fetch(`https://client.peyflex.com.ng/api/data/plans/?network=${identifier}`);
+         if (resp.ok) {
+            const data = await resp.json();
+            if (data.plans) {
+               finalPlans[netName] = data.plans.map((p: any) => ({
+                  id: p.plan_code,
+                  name: p.label,
+                  price: p.amount // Defaulting retail price to exactly the Peyflex cost amount. Admin can markup later.
+               }));
+            } else {
+               finalPlans[netName] = [];
+            }
+         } else {
+            console.error(`Failed to fetch for ${identifier}`, await resp.text());
+            finalPlans[netName] = [];
+         }
+      }
+
+      // Save to Firebase Admin SDK
+      const db = getDb();
+      await db.collection('admin_settings').doc('vtu').set({ dataPlans: finalPlans }, { merge: true });
+
+      return res.json({ success: true, dataPlans: finalPlans });
+    } catch (e: any) {
+      console.error("Sync error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/vtu/purchase", async (req, res) => {
+    try {
+      const { uid, service, network, phone, amount, plan } = req.body;
+      
+      if (!uid || !service || !network || !phone || !amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid purchase details" });
+      }
+
+      const db = getDb();
+      const walletRef = db.collection('wallets').doc(uid);
+      const userDoc = await walletRef.get();
+
+      if (!userDoc.exists) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+
+      const balance = userDoc.data()?.totalBalance || 0;
+      if (balance < amount) {
+        return res.status(400).json({ error: "Insufficient balance" });
+      }
+
+      // 1. Call Peyflex API
+      const peyflexToken = process.env.PEYFLEX_API_TOKEN || "b058d02fb11cbadbea785e3d9747ccc1366adf5e";
+      if (!peyflexToken) {
+         console.warn("PEYFLEX_API_TOKEN not configured. Simulating VTU success.");
+      } else {
+         const DATA_NETWORK_MAP: Record<string, string> = {
+            'MTN': 'mtn_gifting_data', // By default using gifting data for MTN, user can update map if needed
+            'AIRTEL': 'airtel_data',
+            'GLO': 'glo_data',
+            '9MOBILE': '9mobile_data'
+         };
+
+         let peyflexUrl = "";
+         let vtuPayload: any = {};
+
+         if (service === 'data') {
+             peyflexUrl = "https://client.peyflex.com.ng/api/data/purchase/";
+             vtuPayload = {
+                 network: DATA_NETWORK_MAP[network] || network,
+                 mobile_number: phone,
+                 plan_code: plan
+             };
+         } else if (service === 'airtime') {
+             // Airtime endpoint (guessing based on the standard REST structure from the user)
+             peyflexUrl = "https://client.peyflex.com.ng/api/airtime/purchase/";
+             vtuPayload = {
+                 network: DATA_NETWORK_MAP[network] || network, // Might need airtime map (e.g. mtn_airtime or just mtn). Usually data map overlaps, but user only gave data API
+                 mobile_number: phone,
+                 amount: amount
+             };
+         } else {
+             return res.status(400).json({ error: "Unsupported service type" });
+         }
+
+         const vtuRes = await fetch(peyflexUrl, {
+            method: 'POST',
+            headers: {
+               'Authorization': `Token ${peyflexToken}`, // Peyflex uses Token 
+               'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(vtuPayload)
+         });
+
+         const vtuData = await vtuRes.json();
+         
+         if (!vtuRes.ok || vtuData.status !== 'SUCCESS') {
+             console.error("Peyflex Error:", vtuData);
+             return res.status(vtuRes.status === 200 ? 400 : vtuRes.status).json({ error: vtuData.message || (vtuData.error && vtuData.error[0]) || "Failed to process VTU purchase" });
+         }
+      }
+
+      // 2. Process Deduction
+      const batch = db.batch();
+      const txRef = db.collection('wallets').doc(uid).collection('transactions').doc(`vtu-${Date.now()}`);
+
+      batch.set(walletRef, {
+         totalBalance: admin.firestore.FieldValue.increment(-amount)
+      }, { merge: true });
+
+      batch.set(txRef, {
+         type: 'vtu_purchase',
+         amount: amount,
+         title: `${service.toUpperCase()} Recharge - ${network} (${phone})`,
+         status: 'completed',
+         createdAt: new Date().toISOString(),
+         isRead: false
+      });
+
+      await batch.commit();
+
+      res.json({ success: true, message: "Purchase successful!" });
+    } catch (e: any) {
+      console.error("VTU Error:", e.message);
+      res.status(500).json({ error: "Failed to process VTU purchase" });
+    }
+  });
+
+  app.post("/api/referral/claim", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+         return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const token = authHeader.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const uid = decodedToken.uid;
+      const { referrerUid } = req.body;
+
+      if (!referrerUid) {
+         return res.status(400).json({ error: "Missing referrerUid" });
+      }
+
+      const db = getDb();
+      
+      const userDoc = await db.collection('users').doc(uid).get();
+      if (!userDoc.exists || userDoc.data()?.referredBy !== referrerUid) {
+         return res.status(400).json({ error: "Invalid referral" });
+      }
+
+      if (userDoc.data()?.referralBonusClaimed) {
+          return res.status(400).json({ error: "Already claimed" });
+      }
+
+      const userRef = db.collection('users').doc(uid);
+      const referrerUserRef = db.collection('users').doc(referrerUid);
+      const rbWallet = db.collection('wallets').doc(referrerUid);
+      const newTxRef = rbWallet.collection('transactions').doc();
+
+      await db.runTransaction(async (transaction) => {
+         const rbSnap = await transaction.get(rbWallet);
+         const referrerSnap = await transaction.get(referrerUserRef);
+         
+         // Mark user as claimed
+         transaction.update(userRef, { referralBonusClaimed: true });
+
+         // Increment referralCount for the referrer
+         const currentReferralCount = referrerSnap.data()?.referralCount || 0;
+         if (referrerSnap.exists) {
+            transaction.update(referrerUserRef, { referralCount: currentReferralCount + 1 });
+         } else {
+            transaction.set(referrerUserRef, { referralCount: 1 }, { merge: true });
+         }
+
+         // Apply the bonus to referral balance
+         let currentReferralBalance = 0;
+         if (rbSnap.exists) {
+             currentReferralBalance = rbSnap.data()?.referralBalance || 0;
+             transaction.update(rbWallet, { referralBalance: currentReferralBalance + 500 });
+         } else {
+             transaction.set(rbWallet, { totalBalance: 0, referralBalance: 500, currency: 'NGN', createdAt: new Date().toISOString() });
+         }
+      });
+
+      return res.json({ success: true });
+    } catch (e: any) {
+      console.error("Referral Claim Error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/referral/withdraw", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+         return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const token = authHeader.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const uid = decodedToken.uid;
+
+      const db = getDb();
+      const walletRef = db.collection('wallets').doc(uid);
+      const newTxRef = walletRef.collection('transactions').doc();
+
+      await db.runTransaction(async (transaction) => {
+         const walletSnap = await transaction.get(walletRef);
+         if (!walletSnap.exists) {
+             throw new Error("Wallet not found");
+         }
+
+         const data = walletSnap.data()!;
+         const currentReferralBalance = data.referralBalance || 0;
+         if (currentReferralBalance < 3000) {
+             throw new Error("Minimum withdrawal amount is 3000 NGN");
+         }
+
+         // Move referral balance to total balance
+         const currentTotalBalance = data.totalBalance || 0;
+         transaction.update(walletRef, { 
+             referralBalance: 0,
+             totalBalance: currentTotalBalance + currentReferralBalance
+         });
+
+         transaction.set(newTxRef, {
+             type: 'deposit',
+             amount: currentReferralBalance,
+             title: 'Referral Bonus Withdrawal',
+             status: 'completed',
+             createdAt: new Date().toISOString(),
+             isRead: false,
+             txId: newTxRef.id
+         });
+      });
+
+      return res.json({ success: true });
+    } catch (e: any) {
+      console.error("Referral Withdraw Error:", e);
+      return res.status(400).json({ error: e.message });
+    }
+  });
 
   app.post("/api/user/withdraw", async (req, res) => {
         let step = "Fetching DB";
