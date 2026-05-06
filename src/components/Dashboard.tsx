@@ -8,7 +8,7 @@ import {
   Home, Activity, User as UserIcon, Copy, Check,
   QrCode, TrendingUp, History, CreditCard, ChevronRight,
   LogOut, Plus, Wallet, Sun, Moon, LayoutGrid, Gift, ShieldCheck, Users,
-  Lock, HelpCircle, Calculator, Loader2
+  Lock, HelpCircle, Calculator, Loader2, Settings
 } from 'lucide-react';
 import DepositScreen from './DepositScreen';
 import WithdrawScreen from './WithdrawScreen';
@@ -21,6 +21,7 @@ import BankAccountsScreen from './BankAccountsScreen';
 import ServicesScreen from './ServicesScreen';
 import CardScreen from './CardScreen';
 import EditProfileScreen from './EditProfileScreen';
+import SettingsScreen from './SettingsScreen';
 
 interface DashboardProps {
   user: User;
@@ -36,6 +37,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
   const [showCalculator, setShowCalculator] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showBankAccounts, setShowBankAccounts] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Home');
@@ -357,7 +359,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
           )}
 
           {activeTab === 'Cards' && (
-            <CardScreen user={user} />
+            <CardScreen user={user} balance={balance || 0} userData={userData} />
           )}
 
           {activeTab === 'Account' && (
@@ -448,6 +450,23 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                      <div>
                        <h4 className="font-bold text-sm text-black/90 dark:text-white/90">Spending limits</h4>
                        <p className="text-xs text-black/50 dark:text-white/50 font-medium">See spending limits</p>
+                     </div>
+                   </div>
+                   <ChevronRight size={18} className="text-black/40 dark:text-white/40 group-hover:translate-x-1 transition-transform" />
+                </div>
+
+                {/* Security & Settings */}
+                <div 
+                   onClick={() => setShowSettings(true)}
+                   className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                >
+                   <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 text-black/70 dark:text-white/70 flex items-center justify-center">
+                       <Settings size={20} />
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-sm text-black/90 dark:text-white/90">Security & Privacy</h4>
+                       <p className="text-xs text-black/50 dark:text-white/50 font-medium">Reset PIN & Change Password</p>
                      </div>
                    </div>
                    <ChevronRight size={18} className="text-black/40 dark:text-white/40 group-hover:translate-x-1 transition-transform" />
@@ -677,6 +696,21 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                 className="absolute inset-0 z-50 overflow-hidden"
               >
                 <EditProfileScreen onBack={() => setShowEditProfile(false)} user={user} isDarkMode={isDarkMode} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Settings Overlay */}
+          <AnimatePresence>
+            {showSettings && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute inset-0 z-50 overflow-hidden"
+              >
+                <SettingsScreen onBack={() => setShowSettings(false)} user={user} isDarkMode={isDarkMode} />
               </motion.div>
             )}
           </AnimatePresence>

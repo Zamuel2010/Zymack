@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Smartphone, Wifi, Gamepad2, Gift, Zap, Tv, CreditCard, ChevronLeft, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Wifi, Gamepad2, Gift, Zap, Tv, CreditCard, ChevronLeft, ArrowRight, Loader2, CheckCircle2, Bitcoin } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -80,7 +80,7 @@ export default function ServicesScreen({ user }: { user: any }) {
       name: 'Airtime Recharge',
       description: 'Instant top-up for all networks',
       icon: <Smartphone size={24} />,
-      image: 'https://i.postimg.cc/tRr1hB5f/IMG-4051.png',
+      image: 'https://i.postimg.cc/8zC743rf/IMG-4098.jpg',
       color: 'bg-blue-500'
     },
     {
@@ -88,23 +88,15 @@ export default function ServicesScreen({ user }: { user: any }) {
       name: 'Data Bundles',
       description: 'Cheap data for surfing',
       icon: <Wifi size={24} />,
-      image: 'https://picsum.photos/seed/internetdata/400/300?blur=2',
+      image: 'https://i.postimg.cc/9QzfZ7vC/IMG-4099.png',
       color: 'bg-emerald-500'
-    },
-    {
-      id: 'betting',
-      name: 'Sports Betting',
-      description: 'Fund your betting wallet',
-      icon: <Gamepad2 size={24} />,
-      image: 'https://picsum.photos/seed/stadiumsports/400/300?blur=2',
-      color: 'bg-amber-500'
     },
     {
       id: 'giftcards',
       name: 'Gift Cards',
       description: 'Trade & buy global gift cards',
       icon: <Gift size={24} />,
-      image: 'https://picsum.photos/seed/giftcardsxyz/400/300?blur=2',
+      image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=600&auto=format&fit=crop',
       color: 'bg-rose-500'
     },
     {
@@ -112,7 +104,7 @@ export default function ServicesScreen({ user }: { user: any }) {
       name: 'Electricity Bills',
       description: 'Prepaid & postpaid meters',
       icon: <Zap size={24} />,
-      image: 'https://picsum.photos/seed/powergrid/400/300?blur=2',
+      image: 'https://i.postimg.cc/g08mHq4x/IMG-4100.jpg',
       color: 'bg-yellow-500'
     },
     {
@@ -120,7 +112,7 @@ export default function ServicesScreen({ user }: { user: any }) {
       name: 'Cable TV',
       description: 'DSTV, GOTV & Startimes',
       icon: <Tv size={24} />,
-      image: 'https://picsum.photos/seed/television/400/300?blur=2',
+      image: 'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=600&auto=format&fit=crop',
       color: 'bg-purple-500'
     },
   ];
@@ -142,6 +134,17 @@ export default function ServicesScreen({ user }: { user: any }) {
        }
        finalAmount = selectedPlan.price;
        planCode = selectedPlan.id; // Passing plan ID to external VTU API
+    } else if (selectedService?.id === 'tv') {
+       // Mock TV price derivation based on Plan ID chosen in UI
+       const tvPrices: any = {
+           pkg1: 29500,
+           pkg2: 19800,
+           pkg3: 12500,
+           pkg4: 7400,
+           pkg5: 4200
+       };
+       finalAmount = tvPrices[selectedPlanId] || 0;
+       planCode = selectedPlanId;
     }
     
     if (!finalAmount || finalAmount <= 0) {
@@ -166,7 +169,12 @@ export default function ServicesScreen({ user }: { user: any }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to purchase');
       
-      setMessage({ text: `Successfully purchased ${selectedService?.id === 'data' ? 'Data' : 'Airtime'} for ${phone}!`, type: 'success' });
+      let serviceName = 'Airtime';
+      if (selectedService?.id === 'data') serviceName = 'Data';
+      if (selectedService?.id === 'electricity') serviceName = 'Electricity';
+      if (selectedService?.id === 'tv') serviceName = 'TV Subscription';
+
+      setMessage({ text: `Successfully purchased ${serviceName} for ${phone}!`, type: 'success' });
       setPhone('');
       setAmount('');
       setSelectedPlanId('');
@@ -411,6 +419,240 @@ export default function ServicesScreen({ user }: { user: any }) {
     );
   }
 
+  if (selectedService && selectedService.id === 'electricity') {
+    const isValidToPay = phone && amount;
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }} 
+        animate={{ opacity: 1, x: 0 }} 
+        className="flex flex-col pb-6 w-full"
+      >
+        <div className="flex items-center mb-6 mt-4">
+          <button 
+            onClick={() => { setSelectedService(null); setMessage({text:'', type:''}); setAmount(''); setPhone(''); }}
+            className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center mr-4 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          >
+            <ChevronLeft size={20} className="text-black/70 dark:text-white/70" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-black text-black/90 dark:text-white/90 tracking-tight">{selectedService.name}</h2>
+            <p className="text-sm font-medium text-black/50 dark:text-white/50">{selectedService.description}</p>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">Provider</label>
+            <div className="relative">
+              <select 
+                value={network}
+                onChange={(e) => setNetwork(e.target.value)}
+                className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-black/10 dark:focus:border-white/10 rounded-2xl px-5 py-5 text-black dark:text-white font-bold text-lg appearance-none cursor-pointer outline-none transition-all"
+              >
+                {['IKEDC', 'EKEDC', 'AEDC', 'KEDCO', 'PHED', 'IBEDC', 'JEDC'].map(net => (
+                  <option key={net} value={net} className="text-black">{net} - Electric</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/40 dark:text-white/40">
+                <ChevronLeft size={20} className="-rotate-90" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+             <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">Meter Type</label>
+             <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
+                 <button className="flex-1 py-3 text-sm font-bold bg-white dark:bg-[#222] text-black dark:text-white rounded-xl shadow-sm">Prepaid</button>
+                 <button className="flex-1 py-3 text-sm font-bold text-black/50 dark:text-white/50">Postpaid</button>
+             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">Meter Number</label>
+            <div className="relative">
+               <input 
+                 type="text"
+                 value={phone}
+                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 20))}
+                 placeholder="Enter meter number"
+                 className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-black/10 dark:focus:border-white/10 rounded-2xl px-5 py-4 text-black dark:text-white font-bold text-lg placeholder:text-black/20 dark:placeholder:text-white/20 outline-none transition-all"
+               />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">Amount (NGN)</label>
+            <div className="relative">
+               <span className="absolute left-5 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40 font-bold text-xl">₦</span>
+               <input 
+                 type="number"
+                 value={amount}
+                 onChange={(e) => setAmount(e.target.value)}
+                 placeholder="5000"
+                 className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-black/10 dark:focus:border-white/10 rounded-2xl pl-10 pr-5 py-4 text-black dark:text-white font-bold text-xl placeholder:text-black/20 dark:placeholder:text-white/20 outline-none transition-all"
+               />
+            </div>
+          </div>
+
+          {message.text && (
+            <div className={`p-4 rounded-2xl text-sm font-bold mt-2 flex items-center justify-between ${message.type === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          <div className="pt-2">
+            <button
+              onClick={handlePurchase}
+              disabled={loading || !isValidToPay}
+              className={`w-full py-4 px-6 rounded-2xl flex items-center justify-center gap-2 font-bold text-lg transition-all shadow-lg ${
+                isValidToPay
+                 ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20 active:scale-[0.98]'
+                 : 'bg-black/10 dark:bg-white/10 text-black/40 dark:text-white/40 cursor-not-allowed shadow-none'
+              }`}
+            >
+              {loading ? <Loader2 className="animate-spin" size={24} /> : (
+                <>Pay {amount ? `₦${amount}` : ''} <ArrowRight size={20} /></>
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (selectedService && selectedService.id === 'tv') {
+    const isValidToPay = phone && selectedPlanId;
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }} 
+        animate={{ opacity: 1, x: 0 }} 
+        className="flex flex-col pb-6 w-full"
+      >
+        <div className="flex items-center mb-6 mt-4">
+          <button 
+            onClick={() => { setSelectedService(null); setMessage({text:'', type:''}); setSelectedPlanId(''); setAmount(''); setPhone(''); }}
+            className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center mr-4 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          >
+            <ChevronLeft size={20} className="text-black/70 dark:text-white/70" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-black text-black/90 dark:text-white/90 tracking-tight">{selectedService.name}</h2>
+            <p className="text-sm font-medium text-black/50 dark:text-white/50">{selectedService.description}</p>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">Choose Provider</label>
+            <div className="relative">
+              <select 
+                value={network}
+                onChange={(e) => { setNetwork(e.target.value); setSelectedPlanId(''); }}
+                className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-black/10 dark:focus:border-white/10 rounded-2xl px-5 py-5 text-black dark:text-white font-bold text-lg appearance-none cursor-pointer outline-none transition-all"
+              >
+                {['DSTV', 'GOTV', 'STARTIMES'].map(net => (
+                  <option key={net} value={net} className="text-black">{net}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/40 dark:text-white/40">
+                <ChevronLeft size={20} className="-rotate-90" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+             <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">TV Package</label>
+             <div className="relative">
+              <select 
+                value={selectedPlanId}
+                onChange={(e) => setSelectedPlanId(e.target.value)}
+                className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-black/10 dark:focus:border-white/10 rounded-2xl px-5 py-5 text-black dark:text-white font-bold text-base appearance-none cursor-pointer outline-none transition-all"
+              >
+                <option value="" disabled className="text-black">Select a package...</option>
+                <option value="pkg1" className="text-black">Premium - ₦29,500</option>
+                <option value="pkg2" className="text-black">Compact Plus - ₦19,800</option>
+                <option value="pkg3" className="text-black">Compact - ₦12,500</option>
+                <option value="pkg4" className="text-black">Confam - ₦7,400</option>
+                <option value="pkg5" className="text-black">Yanga - ₦4,200</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/40 dark:text-white/40">
+                <ChevronLeft size={20} className="-rotate-90" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-black/50 dark:text-white/50 uppercase tracking-wider mb-2 block">Smart Card / IUC Number</label>
+            <div className="relative">
+               <input 
+                 type="text"
+                 value={phone}
+                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                 placeholder="Enter IUC number"
+                 className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-black/10 dark:focus:border-white/10 rounded-2xl px-5 py-4 text-black dark:text-white font-bold text-lg placeholder:text-black/20 dark:placeholder:text-white/20 outline-none transition-all"
+               />
+            </div>
+          </div>
+
+          {message.text && (
+            <div className={`p-4 rounded-2xl text-sm font-bold mt-2 flex items-center justify-between ${message.type === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          <div className="pt-2">
+            <button
+              onClick={handlePurchase}
+              disabled={loading || !isValidToPay}
+              className={`w-full py-4 px-6 rounded-2xl flex items-center justify-center gap-2 font-bold text-lg transition-all shadow-lg ${
+                isValidToPay
+                 ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20 active:scale-[0.98]'
+                 : 'bg-black/10 dark:bg-white/10 text-black/40 dark:text-white/40 cursor-not-allowed shadow-none'
+              }`}
+            >
+              {loading ? <Loader2 className="animate-spin" size={24} /> : (
+                <>Pay & Renew <ArrowRight size={20} /></>
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (selectedService && (selectedService.id === 'giftcards' || selectedService.id === 'crypto')) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }} 
+        animate={{ opacity: 1, x: 0 }} 
+        className="flex flex-col pb-6 w-full items-center justify-center pt-10"
+      >
+        <div className="flex items-center mb-10 w-full">
+          <button 
+            onClick={() => { setSelectedService(null); }}
+            className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center mr-4 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          >
+            <ChevronLeft size={20} className="text-black/70 dark:text-white/70" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-black text-black/90 dark:text-white/90 tracking-tight">{selectedService.name}</h2>
+          </div>
+        </div>
+
+        <div className="w-24 h-24 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center mb-6">
+          {selectedService.id === 'crypto' ? <Bitcoin size={40} className="text-black/50 dark:text-white/50" /> : <Gift size={40} className="text-black/50 dark:text-white/50" />}
+        </div>
+        
+        <h3 className="text-2xl font-black text-black dark:text-white mb-3 tracking-tight text-center">Coming Soon in V2!</h3>
+        <p className="text-black/60 dark:text-white/60 text-center font-medium leading-relaxed max-w-sm">
+          We are working hard to bring you the best experience for {selectedService.name}. This feature will be rolled out in our highly anticipated V2 update. Stay tuned!
+        </p>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }} 
@@ -454,7 +696,10 @@ export default function ServicesScreen({ user }: { user: any }) {
         ))}
       </div>
 
-      <div className="mt-8 p-6 rounded-3xl bg-black dark:bg-white relative overflow-hidden group cursor-pointer">
+      <div 
+        onClick={() => setSelectedService({ id: 'crypto', name: 'Buy Crypto' })}
+        className="mt-8 p-6 rounded-3xl bg-black dark:bg-white relative overflow-hidden group cursor-pointer"
+      >
          {/* Beautiful gradient background for the promo card */}
          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-yellow-300 via-emerald-500 to-transparent blur-2xl group-hover:opacity-40 transition-opacity"></div>
          <div className="relative z-10 flex items-center justify-between">

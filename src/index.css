@@ -35,3 +35,9 @@ body {
 html.dark body {
   @apply bg-[#050505] text-white;
 }
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(150%);
+  }
+}

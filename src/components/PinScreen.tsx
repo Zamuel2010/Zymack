@@ -121,7 +121,7 @@ export default function PinScreen({ user, isDarkMode, onSuccess }: PinScreenProp
            }}
            src="https://i.postimg.cc/9FNTMHcH/IMG-4049.png" 
            alt="Loading..." 
-           className="w-40 h-40 object-contain drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] dark:drop-shadow-[0_0_30px_rgba(16,185,129,0.2)] scale-125" 
+           className="w-40 h-40 object-cover rounded-full drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] dark:drop-shadow-[0_0_30px_rgba(16,185,129,0.2)]" 
            referrerPolicy="no-referrer" 
         />
       </div>

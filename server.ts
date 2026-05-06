@@ -413,7 +413,9 @@ async function startServer() {
                 console.error("Failed to fetch rates in webhook, using fallback rate.")
             }
             
-            const fiatValue = cryptoAmount * rate;
+            const grossFiatValue = cryptoAmount * rate;
+            const fee = grossFiatValue * 0.015;
+            const fiatValue = grossFiatValue - fee;
             
             // 4. Update the user transaction log (guaranteed to happen once)
             transaction.set(txRef, {
@@ -488,7 +490,9 @@ async function startServer() {
                   }
               } catch (e) {}
               
-              const fiatValue = cryptoAmount * rate;
+              const grossFiatValue = cryptoAmount * rate;
+              const fee = grossFiatValue * 0.015;
+              const fiatValue = grossFiatValue - fee;
               
               transaction.set(txRef, {
                   type: 'receive',
@@ -705,6 +709,20 @@ async function startServer() {
                  network: DATA_NETWORK_MAP[network] || network, // Might need airtime map (e.g. mtn_airtime or just mtn). Usually data map overlaps, but user only gave data API
                  mobile_number: phone,
                  amount: amount
+             };
+         } else if (service === 'electricity') {
+             peyflexUrl = "https://client.peyflex.com.ng/api/electricity/purchase/";
+             vtuPayload = {
+                 disco: network,
+                 meter_number: phone,
+                 amount: amount
+             };
+         } else if (service === 'tv') {
+             peyflexUrl = "https://client.peyflex.com.ng/api/tv/purchase/";
+             vtuPayload = {
+                 provider: network,
+                 smart_card: phone,
+                 plan_code: plan
              };
          } else {
              return res.status(400).json({ error: "Unsupported service type" });
