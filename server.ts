@@ -106,6 +106,45 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get("/api/rates", async (req, res) => {
+    try {
+        let usd = 1600, eur = 1750, gbp = 2050, btc = 100000000;
+        
+        // Fetch Fiat Rates (USD, EUR, GBP) using ExchangeRate-API (Free, no key needed for basic)
+        try {
+            const fiatResp = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+            if (fiatResp.ok) {
+                const fiatData = await fiatResp.json();
+                const ngnRate = fiatData.rates.NGN;
+                if (ngnRate) {
+                    usd = ngnRate;
+                    if (fiatData.rates.EUR) eur = ngnRate / fiatData.rates.EUR;
+                    if (fiatData.rates.GBP) gbp = ngnRate / fiatData.rates.GBP;
+                }
+            }
+        } catch (e) {
+            console.error("Fiat rate fetch error", e);
+        }
+
+        // Fetch BTC using CoinGecko
+        try {
+            const cgResp = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=ngn");
+            if (cgResp.ok) {
+                const cgData = await cgResp.json();
+                if (cgData.bitcoin?.ngn) {
+                    btc = cgData.bitcoin.ngn;
+                }
+            }
+        } catch (e) {
+            console.error("Crypto rate fetch error", e);
+        }
+
+        res.json({ USD: usd, EUR: eur, GBP: gbp, BTC: btc });
+    } catch (e: any) {
+        res.status(500).json({ error: "Failed to fetch rates" });
+    }
+  });
+
   app.post("/api/admin/verify-tx", async (req, res) => {
     const apiKey = process.env.TATUM_API_KEY;
     if (!apiKey) {

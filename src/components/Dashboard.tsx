@@ -26,6 +26,7 @@ import AnalyticsScreen from './AnalyticsScreen';
 import IdentityVerificationScreen from './IdentityVerificationScreen';
 import HelpSupportScreen from './HelpSupportScreen';
 import TransactionsScreen from './TransactionsScreen';
+import ExchangeRatesTicker from './ExchangeRatesTicker';
 
 interface DashboardProps {
   user: User;
@@ -294,6 +295,9 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                   </button>
                 </div>
               </motion.div>
+
+              {/* Live Exchange Rates */}
+              <ExchangeRatesTicker />
 
               {/* Transactions Section */}
               <div className="mb-4 flex justify-between items-end">
