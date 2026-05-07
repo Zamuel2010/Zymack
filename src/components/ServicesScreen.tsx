@@ -163,7 +163,8 @@ export default function ServicesScreen({ user }: { user: any }) {
           network,
           phone,
           amount: finalAmount,
-          plan: planCode
+          plan: planCode,
+          idempotencyKey: crypto.randomUUID()
         })
       });
       const data = await res.json();

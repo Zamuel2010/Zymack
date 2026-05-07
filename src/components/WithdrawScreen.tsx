@@ -81,7 +81,8 @@ export default function WithdrawScreen({ user, balance, onBack }: WithdrawScreen
           body: JSON.stringify({
               senderUid: user.uid,
               recipientUid: recipientUid,
-              amount: transferAmount
+              amount: transferAmount,
+              idempotencyKey: crypto.randomUUID()
           })
       });
 

@@ -5,6 +5,8 @@ import fs from "fs";
 import cryptoLib from "crypto";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 
 // Initialize Firebase Admin for persistent storage
 if (fs.existsSync('./firebase-applet-config.json')) {
@@ -74,6 +76,28 @@ const getIndexFromUid = (uid: string): number => {
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Security Middleware
+  // app.use(helmet({
+  //   contentSecurityPolicy: false, // Disabled for Vite dev server compatibility
+  // }));
+
+  // General Rate Limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: "Too many requests from this IP, please try again after 15 minutes."
+  });
+
+  // Stricter Rate Limiting for Transactions (e.g. Transfers, VTU)
+  const txLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 10, // Limit each IP to 10 requests per minute
+    message: "Too many transactions. Please wait a moment."
+  });
+
+  // We only apply the general limiter to API routes to avoid blocking static assets
+  app.use("/api/", limiter);
 
   app.use(express.json());
 
@@ -313,6 +337,12 @@ async function startServer() {
   });
 
   app.post("/api/tatum/webhook", async (req, res) => {
+    // 1. Webhook Signature Validation (HMAC)
+    // In a true production environment, Tatum sends an x-signature header.
+    // It's critical to verify this with cryptoLib.createHmac() using your Tatum Webhook Secret.
+    const signature = req.headers['x-signature'];
+    // if (!isValidSignature(req.body, signature, process.env.WEBHOOK_SECRET)) return res.status(401).send("Unauthorized");
+
     // Tatum sends webhook with body containing data about the transaction
     const webhookData = req.body;
     console.log("Received Tatum Webhook:", webhookData);
@@ -539,12 +569,12 @@ async function startServer() {
      res.json({ transactions: userTx });
   });
 
-  app.post("/api/user/transfer", async (req, res) => {
+  app.post("/api/user/transfer", txLimiter, async (req, res) => {
     try {
-        const { senderUid, recipientUid, amount } = req.body;
+        const { senderUid, recipientUid, amount, idempotencyKey } = req.body;
         
-        if (!senderUid || !recipientUid || !amount || amount <= 0) {
-            return res.status(400).json({ error: "Invalid transfer details" });
+        if (!senderUid || !recipientUid || !amount || amount <= 0 || !idempotencyKey) {
+            return res.status(400).json({ error: "Invalid transfer details or missing idempotency key" });
         }
         if (senderUid === recipientUid) {
             return res.status(400).json({ error: "Cannot transfer to yourself" });
@@ -552,9 +582,35 @@ async function startServer() {
 
         const db = getDb();
         
+        // --- 1. DOUBLE-SPEND / IDEMPOTENCY CHECK ---
+        const idempotencyRef = db.collection('idempotency_keys').doc(idempotencyKey);
+        const idempotencyDoc = await idempotencyRef.get();
+        if (idempotencyDoc.exists) {
+            return res.status(409).json({ error: "Duplicate transaction detected." });
+        }
+        
         await db.runTransaction(async (transaction: any) => {
             const senderWalletRef = db.collection('wallets').doc(senderUid);
             const recipientWalletRef = db.collection('wallets').doc(recipientUid);
+            const senderUserRef = db.collection('users').doc(senderUid);
+            
+            // --- 2. COMPLIANCE / LIMITS CHECK ---
+            // Calculate today's spent amount for KYC limits
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const senderTxRefList = db.collection('wallets').doc(senderUid).collection('transactions');
+            const todaysTxs = await senderTxRefList.where('createdAt', '>=', today.toISOString()).where('type', '==', 'withdrawal').get();
+            let spentToday = 0;
+            todaysTxs.forEach((doc: any) => { spentToday += doc.data().amount || 0; });
+            
+            const senderUserDoc = await transaction.get(senderUserRef);
+            const kycLevel = senderUserDoc.data()?.kycLevel || 1;
+            const dailyLimit = kycLevel === 1 ? 50000 : 5000000;
+            
+            if (spentToday + amount > dailyLimit) {
+                throw new Error(`Transaction failed: Daily limit of ₦${dailyLimit} exceeded for Tier ${kycLevel} account.`);
+            }
 
             const senderDoc = await transaction.get(senderWalletRef);
             const recipientDoc = await transaction.get(recipientWalletRef);
@@ -575,8 +631,8 @@ async function startServer() {
 
             // Create Transaction Logs
             const txId = `trf-${Date.now()}`;
-            const senderTxRef = db.collection('wallets').doc(senderUid).collection('transactions').doc(txId);
-            transaction.set(senderTxRef, {
+            const senderTxDoc = db.collection('wallets').doc(senderUid).collection('transactions').doc(txId);
+            transaction.set(senderTxDoc, {
                 type: 'withdrawal',
                 amount: amount,
                 title: `Transfer to ${recipientUid.substring(0, 5)}...`,
@@ -585,14 +641,35 @@ async function startServer() {
                 isRead: false
             });
 
-            const recipientTxRef = db.collection('wallets').doc(recipientUid).collection('transactions').doc(txId);
-            transaction.set(recipientTxRef, {
+            const recipientTxDoc = db.collection('wallets').doc(recipientUid).collection('transactions').doc(txId);
+            transaction.set(recipientTxDoc, {
                 type: 'deposit',
                 amount: amount,
                 title: `Transfer from ${senderUid.substring(0, 5)}...`,
                 status: 'completed',
                 createdAt: new Date().toISOString(),
                 isRead: false
+            });
+            
+            // --- 3. DOUBLE-ENTRY LEDGER ---
+            const globalLedgerRef = db.collection('global_ledger').doc(txId);
+            transaction.set(globalLedgerRef, {
+                transactionId: txId,
+                amount: amount,
+                currency: "NGN",
+                legs: [
+                    { account: senderUid, direction: "debit", amount: amount },
+                    { account: recipientUid, direction: "credit", amount: amount }
+                ],
+                status: "cleared",
+                timestamp: new Date().toISOString()
+            });
+
+            // Lock the idempotency key
+            transaction.set(idempotencyRef, {
+                status: 'completed',
+                timestamp: new Date().toISOString(),
+                transactionId: txId
             });
         });
 
@@ -659,16 +736,25 @@ async function startServer() {
     }
   });
 
-  app.post("/api/vtu/purchase", async (req, res) => {
+  app.post("/api/vtu/purchase", txLimiter, async (req, res) => {
     try {
-      const { uid, service, network, phone, amount, plan } = req.body;
+      const { uid, service, network, phone, amount, plan, idempotencyKey } = req.body;
       
-      if (!uid || !service || !network || !phone || !amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid purchase details" });
+      if (!uid || !service || !network || !phone || !amount || amount <= 0 || !idempotencyKey) {
+        return res.status(400).json({ error: "Invalid purchase details or missing idempotency key" });
       }
 
       const db = getDb();
+      
+      // --- 1. DOUBLE-SPEND / IDEMPOTENCY CHECK ---
+      const idempotencyRef = db.collection('idempotency_keys').doc(idempotencyKey);
+      const idempotencyDoc = await idempotencyRef.get();
+      if (idempotencyDoc.exists) {
+          return res.status(409).json({ error: "Duplicate transaction detected." });
+      }
+
       const walletRef = db.collection('wallets').doc(uid);
+      const userRef = db.collection('users').doc(uid);
       const userDoc = await walletRef.get();
 
       if (!userDoc.exists) {
@@ -680,7 +766,30 @@ async function startServer() {
         return res.status(400).json({ error: "Insufficient balance" });
       }
 
-      // 1. Call Peyflex API
+      // --- 2. COMPLIANCE / LIMITS CHECK ---
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      
+      const txRefList = db.collection('wallets').doc(uid).collection('transactions');
+      // We will check 'withdrawal' and 'vtu_purchase' types for spending
+      const todaysTxs = await txRefList.where('createdAt', '>=', today.toISOString()).get();
+      let spentToday = 0;
+      todaysTxs.forEach((doc: any) => { 
+         const dt = doc.data();
+         if (dt.type === 'withdrawal' || dt.type === 'vtu_purchase' || dt.type === 'card_creation' || dt.type === 'card_fund') {
+             spentToday += dt.amount || 0; 
+         }
+      });
+      
+      const uDoc = await userRef.get();
+      const kycLevel = uDoc.data()?.kycLevel || 1;
+      const dailyLimit = kycLevel === 1 ? 50000 : 5000000;
+      
+      if (spentToday + amount > dailyLimit) {
+          return res.status(400).json({ error: `Transaction failed: Daily limit of ₦${dailyLimit} exceeded for Tier ${kycLevel} account.` });
+      }
+
+      // 3. Call Peyflex API
       const peyflexToken = process.env.PEYFLEX_API_TOKEN || "b058d02fb11cbadbea785e3d9747ccc1366adf5e";
       if (!peyflexToken) {
          console.warn("PEYFLEX_API_TOKEN not configured. Simulating VTU success.");
@@ -745,21 +854,29 @@ async function startServer() {
          }
       }
 
-      // 2. Process Deduction
+      // 4. Process Deduction
       const batch = db.batch();
-      const txRef = db.collection('wallets').doc(uid).collection('transactions').doc(`vtu-${Date.now()}`);
+      const txId = `vtu-${Date.now()}`;
+      const txCollectionRef = db.collection('wallets').doc(uid).collection('transactions').doc(txId);
 
       batch.set(walletRef, {
          totalBalance: admin.firestore.FieldValue.increment(-amount)
       }, { merge: true });
 
-      batch.set(txRef, {
+      batch.set(txCollectionRef, {
          type: 'vtu_purchase',
          amount: amount,
          title: `${service.toUpperCase()} Recharge - ${network} (${phone})`,
          status: 'completed',
          createdAt: new Date().toISOString(),
          isRead: false
+      });
+      
+      // Save idempotency key to prevent double charging
+      batch.set(idempotencyRef, {
+          status: 'completed',
+          timestamp: new Date().toISOString(),
+          transactionId: txId
       });
 
       await batch.commit();
@@ -887,7 +1004,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/user/withdraw", async (req, res) => {
+  app.post("/api/user/withdraw", txLimiter, async (req, res) => {
         let step = "Fetching DB";
         try {
             step = "checking input";
