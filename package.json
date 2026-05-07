@@ -18,6 +18,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "bip39": "^3.1.0",
     "bs58": "^6.0.0",
+    "dayjs": "^1.11.20",
     "dotenv": "^17.4.2",
     "ed25519-hd-key": "^2.0.0",
     "express": "^4.21.2",
@@ -28,6 +29,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-qr-code": "^2.0.21",
+    "recharts": "^3.8.1",
     "vite": "^6.2.3"
   },
   "devDependencies": {

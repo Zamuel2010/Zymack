@@ -8,7 +8,7 @@ import {
   Home, Activity, User as UserIcon, Copy, Check,
   QrCode, TrendingUp, History, CreditCard, ChevronRight,
   LogOut, Plus, Wallet, Sun, Moon, LayoutGrid, Gift, ShieldCheck, Users,
-  Lock, HelpCircle, Calculator, Loader2, Settings
+  Lock, HelpCircle, Calculator, Loader2, Settings, PieChart
 } from 'lucide-react';
 import DepositScreen from './DepositScreen';
 import WithdrawScreen from './WithdrawScreen';
@@ -22,6 +22,10 @@ import ServicesScreen from './ServicesScreen';
 import CardScreen from './CardScreen';
 import EditProfileScreen from './EditProfileScreen';
 import SettingsScreen from './SettingsScreen';
+import AnalyticsScreen from './AnalyticsScreen';
+import IdentityVerificationScreen from './IdentityVerificationScreen';
+import HelpSupportScreen from './HelpSupportScreen';
+import TransactionsScreen from './TransactionsScreen';
 
 interface DashboardProps {
   user: User;
@@ -39,6 +43,9 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showBankAccounts, setShowBankAccounts] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [showHelpSupport, setShowHelpSupport] = useState(false);
+  const [showTransactionsFull, setShowTransactionsFull] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Home');
   const [balance, setBalance] = useState<number | null>(null);
@@ -294,7 +301,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                 {transactions.length > 0 && (
                   <button 
                     onClick={() => {
-                      setShowNotifications(true);
+                      setShowTransactionsFull(true);
                       markAllAsRead();
                     }}
                     className="text-[11px] font-medium text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors uppercase tracking-wider"
@@ -356,6 +363,10 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
 
           {activeTab === 'Services' && (
             <ServicesScreen user={user} />
+          )}
+
+          {activeTab === 'Analytics' && (
+            <AnalyticsScreen transactions={transactions} balance={balance || 0} />
           )}
 
           {activeTab === 'Cards' && (
@@ -428,7 +439,10 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                 </div>
 
                 {/* Verify your account */}
-                <div className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group">
+                <div 
+                   onClick={() => setShowVerification(true)}
+                   className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                >
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 text-black/70 dark:text-white/70 flex items-center justify-center">
                        <ShieldCheck size={20} />
@@ -441,15 +455,18 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                    <ChevronRight size={18} className="text-black/40 dark:text-white/40 group-hover:translate-x-1 transition-transform" />
                 </div>
 
-                {/* Spending limits */}
-                <div className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group">
+                {/* Help & Support */}
+                <div 
+                   onClick={() => setShowHelpSupport(true)}
+                   className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                >
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 text-black/70 dark:text-white/70 flex items-center justify-center">
-                       <Activity size={20} />
+                       <HelpCircle size={20} />
                      </div>
                      <div>
-                       <h4 className="font-bold text-sm text-black/90 dark:text-white/90">Spending limits</h4>
-                       <p className="text-xs text-black/50 dark:text-white/50 font-medium">See spending limits</p>
+                       <h4 className="font-bold text-sm text-black/90 dark:text-white/90">Help & Support</h4>
+                       <p className="text-xs text-black/50 dark:text-white/50 font-medium">Get help with your account</p>
                      </div>
                    </div>
                    <ChevronRight size={18} className="text-black/40 dark:text-white/40 group-hover:translate-x-1 transition-transform" />
@@ -476,7 +493,7 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                 <div 
                   className="flex items-center justify-between p-4 rounded-[20px] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
                   onClick={() => {
-                     setShowNotifications(true);
+                     setShowTransactionsFull(true);
                      markAllAsRead();
                   }}
                 >
@@ -591,6 +608,13 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
               <span className="text-[9px] font-bold uppercase tracking-widest">Home</span>
             </button>
             <button 
+              onClick={() => setActiveTab('Analytics')}
+              className={`flex flex-col items-center gap-1.5 transition-colors duration-500 ${activeTab === 'Analytics' ? 'text-black dark:text-white' : 'text-black/40 dark:text-white/40 hover:text-black/60 dark:hover:text-white/60'}`}
+            >
+              <PieChart size={22} strokeWidth={activeTab === 'Analytics' ? 2.5 : 2} className={activeTab === 'Analytics' ? 'fill-black/10 dark:fill-white/10' : ''} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Analytics</span>
+            </button>
+            <button 
               onClick={() => setActiveTab('Services')}
               className={`flex flex-col items-center gap-1.5 transition-colors duration-500 ${activeTab === 'Services' ? 'text-black dark:text-white' : 'text-black/40 dark:text-white/40 hover:text-black/60 dark:hover:text-white/60'}`}
             >
@@ -670,6 +694,31 @@ export default function Dashboard({ user, isDarkMode, toggleDarkMode }: Dashboar
                 }}
               />
             </motion.div>
+          )}
+
+          {showVerification && (
+            <IdentityVerificationScreen 
+               user={user} 
+               userData={userData}
+               onBack={() => setShowVerification(false)} 
+            />
+          )}
+
+          {showHelpSupport && (
+            <HelpSupportScreen 
+               onBack={() => setShowHelpSupport(false)} 
+            />
+          )}
+
+          {showTransactionsFull && (
+            <TransactionsScreen 
+               transactions={transactions}
+               onSelectTx={(tx) => {
+                  setShowTransactionsFull(false);
+                  setSelectedTx(tx);
+               }}
+               onBack={() => setShowTransactionsFull(false)} 
+            />
           )}
 
           {/* Calculator Overlay */}
